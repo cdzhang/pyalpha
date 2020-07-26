@@ -247,7 +247,7 @@ class PairTradingGroup(AbstractTradingStrategy):
 
         if if_viz:
             df_close_u = self.get_close_df[pair_candidate[0]][train_length:]
-            # df_close_v = self.get_close_df[pair_candidate[1]][train_length:]
+            df_close_v = self.get_close_df[pair_candidate[1]][train_length:]
 
             fig = make_subplots(specs=[[{"secondary_y": True}]])
 
@@ -274,7 +274,7 @@ class PairTradingGroup(AbstractTradingStrategy):
                 fig.add_trace(trace_tmp, secondary_y=True)
 
             fig.show()
-        return rlt
+        return rlt, u_signal, u_sell, df_close_u, df_close_v
 
 
 
