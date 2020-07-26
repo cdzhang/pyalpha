@@ -1,4 +1,4 @@
-# encoding = utf-8
+# -*- coding: UTF-8 -*-
 
 import plotly.graph_objects as go
 import pandas as pd
