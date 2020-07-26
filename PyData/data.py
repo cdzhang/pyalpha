@@ -3,17 +3,23 @@ import tushare as ts
 from PyUtils.common import lazy_property
 from glob import glob
 import os
-from PyData.config import HIST_DIR, HIST_END, HIST_START, TS_TOKEN
+from PyData.config import HIST_DIR, HIST_END, HIST_START, TS_TOKEN, STOCK_JSON
 from PyData.utils import *
+import math
+import json
 
 hist_file_ls = glob(os.path.join(HIST_DIR, '*.csv'))
 ts.set_token(TS_TOKEN)
 ts_pro = ts.pro_api()
 
+# stock_json = json.loads(open(STOCK_JSON).read(), encoding='utf8')
+with open(STOCK_JSON, encoding='utf-8') as data_file:
+    stock_json = json.load(data_file)
+
 
 class TuShareTool:
     @staticmethod
-    def get_hist_ts(code, start, end, date_type):
+    def _get_hist_ts(code, start, end, date_type):
         if isinstance(start, str):
             start = pd.to_datetime(start)
 
@@ -24,12 +30,13 @@ class TuShareTool:
             file_dir = glob(os.path.join(HIST_DIR, f'{code}*.csv'))[0]
             df_hist = read_hist_csv(file_dir)
             df_hist = df_hist[(df_hist.date <= end) & (df_hist.date >= start)]
+
         else:
             df_hist = ts.get_hist_data(code, str(start), str(end), date_type).reset_index()
         return df_hist.sort_values('date', ascending=True)
 
     @staticmethod
-    def get_tick_data(code, date):
+    def _get_tick_data(code, date):
         return ts.get_tick_data(code, date, src='tt')
 
 
@@ -39,10 +46,17 @@ class Stock(TuShareTool):
         self.start = start
         self.end = end
         self.date_type = date_type
+        # self.industry = stock_json[code][]
 
     @lazy_property
     def df_get_hist(self):
-        return self.get_hist_ts(self.code, self.start, self.end, self.date_type)
+        df_hist = self._get_hist_ts(self.code, self.start, self.end, self.date_type)
+        df_hist['log_return'] = df_hist['p_change'].apply(lambda x: math.log(x/100 + 1))
+        return df_hist
+
+    @lazy_property
+    def get_market_date_list(self):
+        return self.df_get_hist['date'].tolist()
 
     # @lazy_property
     # def get_industry(self):
