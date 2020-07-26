@@ -3,6 +3,8 @@ from functools import wraps
 import logging
 import traceback
 import time
+from PyUtils.common import lazy_property
+from collections import defaultdict
 
 
 class AbstractTradingStrategy:
@@ -12,11 +14,7 @@ class AbstractTradingStrategy:
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, candidate_pool, signal_pool):
+    def __init__(self, candidate_pool):
         self.candidate_pool = candidate_pool
-        self.signal_pool = signal_pool
-
-    @abstractmethod
-    def calc_return(self, start, end):
-        """统一接口"""
-        pass
+        self.share = defaultdict()
+        self.position = defaultdict(list)
