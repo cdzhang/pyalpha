@@ -165,8 +165,9 @@ class PairTradingGroup(AbstractTradingStrategy):
 
         theta = self.param
 
-        if u == 0 and v == 0:
-            u, v = 0.0001, 0.0001
+        # incase math domain error
+        u = 0.0001 if u == 0 else u
+        v = 0.0001 if v == 0 else v
 
         if family == 'clayton':
             mi_vonu = math.pow(u, - theta - 1) * math.pow(math.pow(u, - theta) + math.pow(v, - theta) - 1,
@@ -245,10 +246,9 @@ class PairTradingGroup(AbstractTradingStrategy):
 
 
 
+        df_close_u = self.get_close_df[pair_candidate[0]][train_length:]
+        df_close_v = self.get_close_df[pair_candidate[1]][train_length:]
         if if_viz:
-            df_close_u = self.get_close_df[pair_candidate[0]][train_length:]
-            df_close_v = self.get_close_df[pair_candidate[1]][train_length:]
-
             fig = make_subplots(specs=[[{"secondary_y": True}]])
 
             trace1 = go.Scatter(y=df_close_u, x=df_close_u.index,
