@@ -333,8 +333,8 @@ class PairTradingGroup(AbstractTradingStrategy):
             rlt = pd.concat([rlt, rlt_k])
 
             # TODO optimize trading threshold
-            u_signal_k = [pd.to_datetime(i).date() for i in rlt[rlt.mi_uonv < 0.05].date]
-            u_sell_k = [pd.to_datetime(i).date() for i in rlt[rlt.mi_uonv > 0.9].date]
+            u_signal_k = [pd.to_datetime(i).date() for i in rlt_k[rlt_k.mi_uonv < 0.05].date]
+            u_sell_k = [pd.to_datetime(i).date() for i in rlt_k[rlt_k.mi_uonv > 0.9].date]
             u_signal += u_signal_k
             u_sell += u_sell_k
 

@@ -27,11 +27,12 @@ class TuShareTool:
             end = pd.to_datetime(end)
 
         if start >= HIST_START and end <= HIST_END and glob(os.path.join(HIST_DIR, f'{code}*.csv')):
+            print('local disk code', code)
             file_dir = glob(os.path.join(HIST_DIR, f'{code}*.csv'))[0]
             df_hist = read_hist_csv(file_dir)
             df_hist = df_hist[(df_hist.date <= end) & (df_hist.date >= start)]
-
         else:
+            # print('API code', code)
             df_hist = ts.get_hist_data(code, str(start), str(end), date_type).reset_index()
         return df_hist.sort_values('date', ascending=True)
 
