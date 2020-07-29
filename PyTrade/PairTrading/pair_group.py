@@ -23,6 +23,8 @@ class PairTradingGroup(AbstractTradingStrategy):
         self.date_range = date_range
         self.trade_now = False
 
+    # todo 读两次数据 why
+
     @lazy_property
     def get_close_price_dict(self):
         """return dict {code : return df with date as index}"""
@@ -32,7 +34,6 @@ class PairTradingGroup(AbstractTradingStrategy):
             candidate = Stock(i, start=self.date_range[0], end=self.date_range[1])
             df_hist = candidate.df_get_hist[['date', 'close']].set_index('date')
             rlt[i] = df_hist.rename(columns={'close': i})
-
         return rlt
 
     @lazy_property
@@ -210,6 +211,7 @@ class PairTradingGroup(AbstractTradingStrategy):
         a = log_df[pair_candidate[0]]
         b = log_df[pair_candidate[1]]
 
+        # use 0:180 days data to train the model todo fresh the model monthly
         self._train_copula(log_return_a=a[:train_length], log_return_b=b[:train_length], family=family)
 
         i = 0
@@ -244,8 +246,6 @@ class PairTradingGroup(AbstractTradingStrategy):
         #         rlt.append({'date': u_sell[i], 'action': 'sell'})
         #         i += 1
 
-
-
         df_close_u = self.get_close_df[pair_candidate[0]][train_length:]
         df_close_v = self.get_close_df[pair_candidate[1]][train_length:]
         if if_viz:
@@ -276,7 +276,102 @@ class PairTradingGroup(AbstractTradingStrategy):
             fig.show()
         return rlt, u_signal, u_sell, df_close_u, df_close_v
 
+    def trade_signal_monthly_fresh(self, pair_candidate, train_length, family, if_viz=True, fresh_win=20):
+        """
+        update trade_signal by Dan
+        :param pair_candidate:
+        :param train_length:
+        :param family:
+        :param if_viz:
+        :param fresh_win: default 20 days, fresh model every 20 trading days
+        :return:
+        """
+        self.position['u'] = [0] * train_length
+        self.position['v'] = [0] * train_length
 
+        # 1st train copula
+        log_df = self.get_log_return_df[pair_candidate]
+
+        a = log_df[pair_candidate[0]]
+        b = log_df[pair_candidate[1]]
+
+        # use 0:180 days data to train the model todo fresh the model monthly
+        # update model for every 20 trading days
+        win_start = 0
+
+        i = 0
+        mi_uonv_ls = []
+        mi_vonu_ls = []
+
+        rlt = pd.DataFrame(columns=['date', 'mi_uonv', 'mi_vonu'])
+        u_signal = []
+        u_sell = []
+        while win_start + train_length < len(a):
+            # print('win_start', win_start, train_length+win_start)
+            # make sure len of training sample == train_length
+            self._train_copula(log_return_a=a[win_start:train_length+win_start],
+                               log_return_b=b[win_start:train_length+win_start],
+                               family=family)
+
+            # predict next fresh_win data
+            test_period = log_df.index[train_length + win_start: min(train_length+win_start + fresh_win, len(a))]
+
+            # while i < fresh_win:
+            for traday_index in range(train_length+win_start, min(train_length+win_start + fresh_win, len(a))):
+
+                # print('traday_index', traday_index)
+                mi_uonv, mi_vonu = self._mispricing_index(x=a[traday_index], y=b[traday_index], family=family)
+                mi_uonv_ls.append(mi_uonv)
+                mi_vonu_ls.append(mi_vonu)
+                # i += 1
+                # self.generate_position_list(mi_uonv, mi_vonu)
+            rlt_k = pd.DataFrame(columns=['date', 'mi_uonv', 'mi_vonu'])
+            # print('len(test_period), len(mi_uonv_ls), len(mi_vonu_ls)',
+            #       len(test_period), len(mi_uonv_ls), len(mi_vonu_ls))
+            rlt_k = rlt_k.assign(date=test_period, mi_uonv=mi_uonv_ls, mi_vonu=mi_vonu_ls)
+            win_start += fresh_win
+            rlt = pd.concat([rlt, rlt_k])
+
+            # TODO optimize trading threshold
+            u_signal_k = [pd.to_datetime(i).date() for i in rlt[rlt.mi_uonv < 0.05].date]
+            u_sell_k = [pd.to_datetime(i).date() for i in rlt[rlt.mi_uonv > 0.9].date]
+            u_signal += u_signal_k
+            u_sell += u_sell_k
+
+            # reset for next month
+            mi_uonv_ls = []
+            mi_vonu_ls = []
+
+        # for viz
+        df_close_u = self.get_close_df[pair_candidate[0]][train_length:]
+        df_close_v = self.get_close_df[pair_candidate[1]][train_length:]
+        if if_viz:
+            fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+            trace1 = go.Scatter(y=df_close_u, x=df_close_u.index,
+                                name=pair_candidate[0],
+                                xaxis='x2', yaxis='y2')
+
+            fig.add_trace(trace1, secondary_y=False)
+
+            for i in u_signal:
+                trace_tmp = go.Scatter(y=[0, 1], x=[pd.to_datetime(i).date(), pd.to_datetime(i).date()],
+                                       name="mispricing index: buy",
+                                       xaxis='x2', yaxis='y2', mode="lines",
+                                       line_color="tomato"
+                                       )
+                fig.add_trace(trace_tmp, secondary_y=True)
+
+            for i in u_sell:
+                trace_tmp = go.Scatter(y=[0, 1], x=[pd.to_datetime(i).date(), pd.to_datetime(i).date()],
+                                       name="mispricing index: sell",
+                                       xaxis='x2', yaxis='y2', mode="lines",
+                                       line_color="peachpuff"
+                                       )
+                fig.add_trace(trace_tmp, secondary_y=True)
+
+            fig.show()
+        return rlt, u_signal, u_sell, df_close_u, df_close_v
 
 
 
