@@ -230,9 +230,9 @@ class PairTradingGroup(AbstractTradingStrategy):
 
         # print(rlt.head(6))
         # TODO optimize trading threshold
-        u_signal = [pd.to_datetime(i).date() for i in rlt[rlt.mi_uonv < 0.05].date]
+        u_signal = [i.date() for i in rlt[rlt.mi_uonv < 0.05].date]
         # v_signal = rlt[rlt.mi_vonu < 0.05].date
-        u_sell = [pd.to_datetime(i).date() for i in rlt[rlt.mi_uonv > 0.9].date]
+        u_sell = [i.date() for i in rlt[rlt.mi_uonv > 0.9].date]
 
         # rlt = []
         #

@@ -19,7 +19,7 @@ with open(STOCK_JSON, encoding='utf-8') as data_file:
 
 class TuShareTool:
     @staticmethod
-    def _get_hist_ts(code, start, end, date_type):
+    def _get_hist_ts(code, start, end):
         if isinstance(start, str):
             start = pd.to_datetime(start)
 
@@ -33,7 +33,8 @@ class TuShareTool:
             df_hist = df_hist[(df_hist.date <= end) & (df_hist.date >= start)]
         else:
             # print('API code', code)
-            df_hist = ts.get_hist_data(code, str(start), str(end), date_type).reset_index()
+            df_hist = ts_pro.daily(ts_code=code, start_date=start.strftime('%Y%m%d'), end_date=end.strftime('%Y%m%d'))
+            df_hist['date'] = df_hist['trade_date'].apply(pd.to_datetime)
         return df_hist.sort_values('date', ascending=True)
 
     @staticmethod
@@ -51,8 +52,8 @@ class Stock(TuShareTool):
 
     @lazy_property
     def df_get_hist(self):
-        df_hist = self._get_hist_ts(self.code, self.start, self.end, self.date_type)
-        df_hist['log_return'] = df_hist['p_change'].apply(lambda x: math.log(x/100 + 1))
+        df_hist = self._get_hist_ts(self.code, self.start, self.end)
+        df_hist['log_return'] = df_hist['pct_chg'].apply(lambda x: math.log(x/100 + 1))
         return df_hist
 
     @lazy_property
@@ -66,7 +67,7 @@ class Stock(TuShareTool):
     @lazy_property
     def df_get_close_return(self):
         """return list of daily return close price"""
-        df = self.df_get_hist[['date', 'p_change', 'close', 'price_change']]
+        df = self.df_get_hist[['date', 'pct_chg', 'close', 'change']]
         p0 = df.close.iloc[0]
         df['cum_return'] = [(i - p0) / p0 for i in df.close]
         return df
